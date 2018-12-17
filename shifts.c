@@ -18,6 +18,19 @@ typedef struct{
     char** text;
 }CipheredText;
 
+/*-------------------------------------------------------------------
+*  FUNCTION getLBigramValue :
+*  This function returns the probability of two letters beeing next
+*   to each other in a text
+*
+*  INPUT :
+*     - BigamsHssh : a valid pointer to a bigramsHash structure
+*     - firstLetter: a letter in the language of the bigrams table
+*     - firstLetter: a letter in the language of the bigrams table
+*
+*  OUTPUT :
+*     - the bigram value
+--------------------------------------------------------------------*/
 static double getBigramValue(Bigrams* bigramsHash, char firstLetter, char secondLetter){
     unsigned int valueFirstLetter = firstLetter - 'a';
     unsigned int valueSecondLetter = secondLetter - 'a';
@@ -140,7 +153,7 @@ static int initBigrams(Bigrams* bigramsHash, char* bigramsFile){
     for(size_t i = 0; i< fileLength; i++){
         
         fscanf(fp, "%3c%lf\n",unusedStr,&bigramsHash->table[i]);
-        //bigramsHash->table[i]*=1000;
+
     }
 
     unsigned int nbLettersInAlphabet = intSqrt(fileLength);//calculate the number of 
@@ -162,12 +175,11 @@ static double alignmentQuality(CipheredText* ciphered,Bigrams* bigramsHash, size
         return -1;
     }
 
-    double quality = 1.0;
-    for(long int i= 0; i < ciphered->nbColumns ;i++){
-        quality *= getBigramValue(bigramsHash, ciphered->text[line1][(i-shiftLine1)%ciphered->nbColumns], ciphered->text[line2][(i-shiftLine2)%ciphered->nbColumns]);
+    double quality = 0.0;
+    for(size_t i= 0; i < ciphered->nbColumns ;i++){
+        quality += log(getBigramValue(bigramsHash, ciphered->text[line1][(i-shiftLine1)%ciphered->nbColumns], ciphered->text[line2][(i-shiftLine2)%ciphered->nbColumns]));
     }
-    printf(" %lf\n",log(quality));
-    return log(quality);
+    return quality;
 }
 
 
@@ -195,23 +207,64 @@ static char* flattenText(char** text, size_t nbColumns, size_t nbLines){
 return flatText;
 }
 
+static void printText(char* fileName, char** text, size_t nbColumns, size_t nbLines){
+    if(!text || !fileName){
+        printf("error\n");
+        return;
+    }
+    FILE* fp = fopen(fileName, "w");
+    if(!fp){
+        printf("error opening file\n");
+        return;
+    }
+    for(size_t i = 0; i < nbLines ; i++){
+        for(size_t j = 0; j<nbColumns ; j++){
+            fprintf(fp,"%c",text[i][j]);
+        }
+        fprintf(fp,"\n");
+    }
+
+    return;
+}
+
+static void shiftText(char** text,int* shifts,  size_t nbColumns, size_t nbLines){
+    if(!text || !shifts){
+        return;
+    }
+
+    for(size_t i = 0; i<nbLines ; i++){
+        char * tmpString = malloc(nbColumns*sizeof(char));
+        if(!tmpString){
+            printf("error\n");
+            return;
+        }
+        for(size_t j = 0; j<nbColumns ; j++){
+            tmpString[j] = text[i][(j-shifts[i])%nbColumns];
+
+        }
+        free(text[i]);
+        text[i] = tmpString;
+    }
+    return;
+}
 
 static double optimalShiftRec(int* optimalShifts, Bigrams* bigramsHash, CipheredText* ciphered, size_t nbrRows, int maxShifts){
     if(!optimalShifts || !bigramsHash || !ciphered){
         printf("error\n");
         return -INFINITY;
     }
-    if(nbrRows == 1){
+    if(nbrRows == 0){
         return 0.0;
     }
-
+    printf("row --- %lu\n", nbrRows-1);
     double maxQuality = -INFINITY;
     int bestShift = 0;
     printf("in");
     for(int start = 0-maxShifts; start <= maxShifts; start++){
         double currentQuality = alignmentQuality(ciphered, bigramsHash, nbrRows - 1, nbrRows, start, optimalShifts[nbrRows]);
-        
-        if(currentQuality > maxQuality){
+        printf( "current %lf --- max %lf\n",currentQuality, maxQuality );
+        if(currentQuality >= maxQuality){
+            printf("in\n");
             maxQuality = currentQuality;
             bestShift = start;
         }
@@ -271,7 +324,9 @@ int shifts(unsigned int max_shift, char* ciphered_text, char* bigrams){
     fprintf(stdout,"\n");
     fprintf(stdout,"%lf\n",optimalShiftsScore);
 
-
+    printText("copyOfTest.txt",textToCrack->text, textToCrack-> nbColumns, textToCrack->nbLines);
+    shiftText(textToCrack->text,optimalShifts, textToCrack-> nbColumns, textToCrack->nbLines);
+    printText("testDesciohered.txt",textToCrack->text, textToCrack-> nbColumns, textToCrack->nbLines);
     return 0;
 }
 
