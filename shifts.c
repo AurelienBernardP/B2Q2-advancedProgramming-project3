@@ -232,6 +232,7 @@ static void shiftText(char** text,int* shifts,  size_t nbColumns, size_t nbLines
         return;
     }
 
+
     for(size_t i = 0; i<nbLines ; i++){
         char * tmpString = malloc(nbColumns*sizeof(char));
         if(!tmpString){
