@@ -4,78 +4,98 @@
 
 #include"Matrix.h"
 #include"IOHandler.h"
+#include"shifts.h"
 
 typedef struct{
     unsigned int nbLetters;
     double* table;
 
 }Bigrams;
-unsigned int getBigramValue(Bigrams* bigramsHash, char firstLetter, char secondLetter){
+
+typedef struct{
+    size_t nbColumns;
+    size_t nbLines;
+    char** text;
+}CipheredText;
+
+static double getBigramValue(Bigrams* bigramsHash, char firstLetter, char secondLetter){
     unsigned int valueFirstLetter = firstLetter - 'a';
-    unsigned int valueSecondLetter = secondLetter - 'a' + 1 ;
+    unsigned int valueSecondLetter = secondLetter - 'a';
     unsigned int position = valueFirstLetter * bigramsHash->nbLetters + valueSecondLetter;
 
 return bigramsHash->table[position];
 }
 
+static void destroyBigrams(Bigrams* bigrams){
+    if(!bigrams){
+        return;
+    }
+    if(bigrams->table)
+        free(bigrams->table);
+    free(bigrams);
+return;
+}
 
-Matrix** initText(char* cipheredText){
-    if(!cipheredText){
+static CipheredText* initText(CipheredText* ciphered ,char* textPath){
+    if(!ciphered || !textPath){
         printf("error");
         return NULL;
     }
 
 
-    FILE* fp= fopen(cipheredText, "r");
+    FILE* fp= fopen(textPath, "r");
     if(!fp){
         printf("error opening ciphered text\n");
         return NULL;
     }
 
     size_t lengthText = 0;//count the lines and columns in the file
-    size_t nbLines = 0;
+    ciphered->nbLines = 0;
     while(!feof(fp)){
         char c = getc(fp);
         if(c == '\n'){
-            nbLines ++;
+            ciphered->nbLines ++;
         }else{
             lengthText++;
         }
     }
     fclose(fp);
-    size_t nbColumns = lengthText/nbLines; 
+    ciphered->nbColumns = (lengthText+1)/ciphered->nbLines; //upper bound of decimal, that is the reason for the +1
+    size_t nbLinesTmp = ciphered->nbLines;
 
-    char* oneLineText = readCipheredText(cipheredText, lengthText, nbLines);
+    char* oneLineText = readCipheredText(textPath, &lengthText, &nbLinesTmp);
     if(!oneLineText){
         printf("error making one line text\n");
         return NULL;
     }
 
-    Matrix** text = malloc(nbLines * sizeof(void*));
-    if(!text){
+    ciphered->text = malloc(ciphered->nbLines * sizeof(char*));
+    if(!ciphered->text){
         printf("error allocating matrix text\n");
         return NULL;
     }
-    char* tmpString = malloc(nbColumns * sizeof(char));
-    if(!tmpString){
-        printf("error allocating tmp string\n");
-        return NULL;
-    }    
-    for(size_t i = 0; i < nbLines;i++){
-        
 
-        for(size_t j = 0; j<nbColumns; j++){
-            tmpString[j] = oneLineText[nbColumns*i + j]; 
+    
+    for(size_t i = 0; i < ciphered->nbLines;i++){
+        char* tmpString = malloc(ciphered->nbColumns * sizeof(char));
+        if(!tmpString){
+            printf("error allocating tmp string\n");
+            return NULL;
         }
-        text[i] = createMatrixForString(tmpString, nbColumns, nbColumns);
-        if(!text[i]){
+        //will not be freed in this function as createMatrixFrom sting doesn't copy the string it keeps a pointer to first element.
+        for(size_t j = 0; j < ciphered->nbColumns; j++){
+            tmpString[j] = oneLineText[ciphered->nbColumns*i + j]; 
+        }
+        ciphered->text[i] = tmpString;
+        if(!ciphered->text[i]){
             printf("error making line matrix\n");
             return NULL;
         }
         
     }
-    free(tmpString);
-return text;
+
+    
+return ciphered;
 }
 
 
@@ -96,7 +116,6 @@ static int initBigrams(Bigrams* bigramsHash, char* bigramsFile){
     if(!bigramsFile || !bigramsHash){
         return -1;
     }
-    printf("in\n");
     FILE* fp = fopen(bigramsFile, "r");// open file and check opening
     if(!fp){
         printf("error opening bigrams\n");
@@ -104,11 +123,10 @@ static int initBigrams(Bigrams* bigramsHash, char* bigramsFile){
     }
     char unusedStr[3];
     double unusedVal;
-    size_t fileLength = 1;//find the length of the bigrams file, hence the number of combinations of 2 letters
-    printf("%d",fscanf(fp, "%3c%lf\n",unusedStr,&unusedVal ) );
-    printf("%lf\n", unusedVal);
+    size_t fileLength = 0;//find the length of the bigrams file, hence the number of combinations of 2 letters
+
     while ( fscanf(fp, "%3c%lf\n",unusedStr,&unusedVal ) == 2){
-        printf("%lf\n", unusedVal);
+        
         fileLength ++;
     }
 
@@ -122,6 +140,7 @@ static int initBigrams(Bigrams* bigramsHash, char* bigramsFile){
     for(size_t i = 0; i< fileLength; i++){
         
         fscanf(fp, "%3c%lf\n",unusedStr,&bigramsHash->table[i]);
+        //bigramsHash->table[i]*=1000;
     }
 
     unsigned int nbLettersInAlphabet = intSqrt(fileLength);//calculate the number of 
@@ -137,36 +156,124 @@ static int initBigrams(Bigrams* bigramsHash, char* bigramsFile){
 return 0;
 }
 
-
-double costFunction(Bigrams* bigramsHash,char* firstLine, char* secondLine, unsigned int lenghtOfLine ){
-    if(!bigramsHash || !firstLine || !secondLine){
-        printf("error\n")
-        return -1.0;
+static double alignmentQuality(CipheredText* ciphered,Bigrams* bigramsHash, size_t line1, size_t line2, int shiftLine1, int shiftLine2){
+    if(!line1 || !line2 || !bigramsHash){
+        printf("uninitialized arguments in alignmentQuality\n");
+        return -1;
     }
-    
 
-return cost;
+    double quality = 1.0;
+    for(long int i= 0; i < ciphered->nbColumns ;i++){
+        quality *= getBigramValue(bigramsHash, ciphered->text[line1][(i-shiftLine1)%ciphered->nbColumns], ciphered->text[line2][(i-shiftLine2)%ciphered->nbColumns]);
+    }
+    printf(" %lf\n",log(quality));
+    return log(quality);
 }
 
+
+static char* flattenText(char** text, size_t nbColumns, size_t nbLines){
+    if(!text){
+        printf("text not initialized\n");
+        return NULL;
+    }
+    char* flatText = malloc(nbColumns*nbLines*sizeof(char));
+    if(!flatText){
+        printf("error allocating memory\n");
+        return NULL;
+    }
+    for(size_t i = 0; i < nbLines; i++){
+        for(size_t j = 0; j<nbColumns; j++){
+            flatText[i*nbColumns+j] = text[i][j];
+        }
+    }
+    for(size_t i = 0 ;i< nbColumns*nbLines; i++){
+        printf("%c",flatText[i] );
+    }
+    printf("\n");
+
+
+return flatText;
+}
+
+
+static double optimalShiftRec(int* optimalShifts, Bigrams* bigramsHash, CipheredText* ciphered, size_t nbrRows, int maxShifts){
+    if(!optimalShifts || !bigramsHash || !ciphered){
+        printf("error\n");
+        return -INFINITY;
+    }
+    if(nbrRows == 1){
+        return 0.0;
+    }
+
+    double maxQuality = -INFINITY;
+    int bestShift = 0;
+    printf("in");
+    for(int start = 0-maxShifts; start <= maxShifts; start++){
+        double currentQuality = alignmentQuality(ciphered, bigramsHash, nbrRows - 1, nbrRows, start, optimalShifts[nbrRows]);
+        
+        if(currentQuality > maxQuality){
+            maxQuality = currentQuality;
+            bestShift = start;
+        }
+    }
+    optimalShifts[nbrRows-1] = bestShift;
+    
+    return maxQuality + optimalShiftRec(optimalShifts,bigramsHash,ciphered, --nbrRows, maxShifts);
+
+}
+/*static int findStart(char* line, size_t lineLength, size_t nbColumns, size_t* optimalShifts){
+    if(!line || !optimalShifts){
+        printf("error\n");
+        return -1;
+    }
+    size_t optimalStart = 0;
+    double maxQuality = 0;
+    for(size_t i = 0; i< lineLength ; i++){
+        currentQuality
+    }
+
+
+
+}
+*/
 int shifts(unsigned int max_shift, char* ciphered_text, char* bigrams){
     if (!ciphered_text || !bigrams){
         printf("error\n");
-        return;
+        return -1;
     }
 
     Bigrams* bigramsHash = malloc(sizeof(Bigrams));
-    initBigrams(bigramsHash,bigrams);
-    if(initBigrams(bigramsHash,bigrams != 0){
+    if(initBigrams(bigramsHash,bigrams) != 0){
         printf("error in bigrams init\n");
         return -1;
+    }    
+    CipheredText* textToCrack = malloc(sizeof(CipheredText));
+    if(!initText(textToCrack, ciphered_text)){
+        printf("error in ciphered text init\n");
+        
+        destroyBigrams(bigramsHash);
+        return-1;
     }
-    Matrix** textToCrack = initText(ciphered_text);
-    if(!textToCrack){
-        printf("error in text to crack init\n");
-        free(bigrams);
+
+    int* optimalShifts = calloc(textToCrack->nbLines, sizeof(int));
+
+    if(!optimalShifts){
+        printf("error allocating memory space\n");
         return -1;
     }
+    
+    double optimalShiftsScore = optimalShiftRec(optimalShifts, bigramsHash, textToCrack, textToCrack->nbLines-1, max_shift);
+
+    for(size_t i = 0; i<textToCrack->nbLines-1; i++ ){
+        fprintf(stdout,"%d ",optimalShifts[i]);
+    }
+    fprintf(stdout,"%d",optimalShifts[textToCrack->nbLines-1]);
+    fprintf(stdout,"\n");
+    fprintf(stdout,"%lf\n",optimalShiftsScore);
 
 
-    return;
+    return 0;
 }
+
+
+
