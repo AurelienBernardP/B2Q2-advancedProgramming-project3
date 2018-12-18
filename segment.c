@@ -4,16 +4,14 @@
 #include <math.h>
 
 #include "HashTable.h"
-
+#include "maxSegmentHandling.c"
 typedef struct{
-    char* maxStr;
+    bool isSpliced;
+    MaxCell split1;
+    MaxCell split2;
+    char* unsplicedWord;
     double value;
-}MaxCell;
-
-typedef struct{
-    MaxCell* table;
-    size_t tableSize;
-}
+}CurrentMax
 /*-------------------------------------------------------------------
 *  FUNCTION compareString  :
 *  compares two strings
@@ -116,10 +114,13 @@ static HashTable* initWordHash(char* words,size_t* nbOccursTot){
    size_t nbOccurs = 0;
    char separator[2] = ";";
    char sizeLine[200];
-   char *wordName = malloc(sizeof(char) * 100);
-   while (fscanf(fp, "%s", sizeLine) != -1)
-   {
-      //Separating the line with the separator (first part = word)
+ 
+   while (fscanf(fp, "%s", sizeLine) != -1){
+        char *wordName = malloc(sizeof(char) * 100);
+        if(!wordName){
+            printf("starfoula malloc\n");
+            return NULL;
+        }  //Separating the line with the separator (first part = word)
       wordName = strtok(sizeLine, separator);
       
       //second part = number of occ
@@ -127,7 +128,7 @@ static HashTable* initWordHash(char* words,size_t* nbOccursTot){
       nbOccursTot += nbOccurs;
 
       //Insert elem in hastable
-      insertElement(hashTable, (char **)wordName, (size_t *)nbOccurs);
+      insertElement(hashTable, (char*)wordName, (size_t *)nbOccurs);
    }
 
    printf("num element %lu\n", getNumElements(hashTable));
@@ -140,42 +141,70 @@ static HashTable* initWordHash(char* words,size_t* nbOccursTot){
 
     return hashTable;
 }
-static MaxCell* findSengment(MaxTable* maximums, char* text){
-    if(!text){
-        printf("uninitialized text");
-        return;
-    }
-    for(size_t i = 0; i<maximums->tableSize ; i++){
-        if(strcmp(text, maximums->table[i]->maxStr)==){
-            //segment has been found
-            return maximums->table[i];
-        }
-    }
-    return NULL;
-}
-double maxSegmentation(HashTable* wordsHash, char* text, size_t start, size_t end, MaxTable* recordedMaxes, size_t nbOccursTot){
-    if(!wordsHash || !text || !recordedMaxes){
+
+MaxCell* maxSegmentation(HashTable* wordsHash, char* text, size_t start, size_t end, MaxTable* recordedMaximums, size_t nbOccursTot){
+    if(!wordsHash || !text || !recordedMaximums){
         printf("uninit args\n");
         return -INFINITY;
     }
     size_t wordSize = end - start;
-    if(wordSize == 1){
+    if(wordSize <= 1){
         //base case
-
+        char letter = text[start];
+        return insertNewMaxCell(MaxTable* recordedMaximums,char* text);
     }
+
     //init the word
     char* word = malloc((1+wordSize)*sizeof(char));
-    if(!tmpText){
+    if(!word){
         return;
     }
     for(size_t i = start, j = 0; i < end; i++, j++ ){
         word[j] = text[i];
     }
     word[wordSize+1] = '\0';
-    
-    double maxValue = stringValue(wordsHash, word, size_t nbOccursTot);
 
-return maxValue;
+    //end init of word
+    //check if the maximazing segmentation for this word has already been calculated
+    MaxCell* wasCalculated = findSegment(MaxTable* maximums, char* text);
+    if(wasCalculated != NULL){
+        free(word);
+        return wasCalculated;
+    }
+    //if it hasn't been calculated continue
+
+    // init the current Max
+    CurrentMax* currentMax = malloc(sizeof(CurrentMax));
+    if(!currentMax){
+        free(word);
+        return NULL;
+    }
+    currentMax->isSpliced = False;
+    currentMax->split1 = CurrentMax->split2 = NULL;
+    currentMax->unsplicedWord = word;
+    currentMax->value = stringValue(wordsHash, word, nbOccursTot);
+    // end init current max
+
+    for(size_t i = 1; i < end ; i++){
+        MaxCell* cell1 = maxSegmentation(wordsHash, text, start, (end-i), recordedMaximums, nbOccursTot);
+        MaxCell* cell2 = maxSegmentation(wordsHash, text, (end-i), end, recordedMaximums, nbOccursTot);
+        if(cell1->value + cell->value > currentMax->value){
+            //a new max has been found
+            if(currentMax->isSpliced){
+                //replace the other cells
+                currentMax->split1 = cell1;
+                currentMax->split2 = cell2;
+            }else{
+                //set the spliced bool to true, place the cells and free the current word which wont be needed any longer
+                currentMax->isSpliced = True;
+                currentMax->split1 = cell1;
+                currentMax->split2 = cell2;
+                free(currentMax->word);
+            }
+        }
+    }
+
+return updateMaxTable(recordedMaximums,currentMax);
 
 }
 
