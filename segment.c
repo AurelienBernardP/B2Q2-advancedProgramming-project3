@@ -5,11 +5,38 @@
 
 #include "HashTable.h"
 
+typedef struct{
+    char* maxStr;
+    double value;
+}MaxCell;
+
+typedef struct{
+    MaxCell* table;
+    size_t tableSize;
+}
+/*-------------------------------------------------------------------
+*  FUNCTION compareString  :
+*  compares two strings
+*
+*  INPUT :
+*     - a: valid string
+*     - b: valid string
+*  OUTPUT :
+*     - 0 if they are the same other value otherwise;
+--------------------------------------------------------------------*/
 static int compareString(const void *a, const void *b)
 {
    return strcmp((char *)a, (char *)b);
 }
-
+/*-------------------------------------------------------------------
+*  FUNCTION naiveEncodeString
+*  hashing function for a string
+*
+*  INPUT :
+*     - key: valid string pointer
+*  OUTPUT :
+*     - a key value for the string input
+--------------------------------------------------------------------*/
 static size_t naiveEncodeString(const void *key)
 {
    const char *str = (char *)key;
@@ -20,8 +47,19 @@ static size_t naiveEncodeString(const void *key)
       uniqueKey += pow(27, i+1)*(str[i] - 'a');
    return uniqueKey;
 }
-
-long double frequency(HashTable *hashTable, char *word, size_t nbOccursTot)
+/*-------------------------------------------------------------------
+*  FUNCTION frequency
+*  finds the frequency of a string in the words hash table if it is 
+*  present
+*
+*  INPUT :
+*     - hashTable : valid hash table of word and their occurence
+*     - word : string of the word to find
+*     - nbOccursTot : nb of words used to do the has table of occurencies
+*  OUTPUT :
+*     - a value for the frequency of the word in the table
+--------------------------------------------------------------------*/
+long double static frequency(HashTable *hashTable, char *word, size_t nbOccursTot)
 {
    if (!hashTable)
    {
@@ -37,13 +75,24 @@ long double frequency(HashTable *hashTable, char *word, size_t nbOccursTot)
       return dec / power;
    }
 }
-
-int segment(char *plain_txt, char *words)
-{
-   if (!words)
-   {
+/*-------------------------------------------------------------------
+*  FUNCTION stringValue
+*  uses frequency to find the value of the word for a criptographys segmentation
+*
+*  INPUT :
+*     - hashTable : valid hash table of word and their occurence
+*     - word : string of the word to find
+*     - nbOccursTot : nb of words used to do the has table of occurencies
+*  OUTPUT :
+*     - a value for the word input
+--------------------------------------------------------------------*/
+static long double stringValue(HashTable *hashTable, char *word, size_t nbOccursTot){
+    return log(frequency(hashTable, word, nbOccursTot));
+}
+static HashTable* initWordHash(char* words,size_t* nbOccursTot){
+   if (!words){
       printf("Starfoula\n");
-      return -1; //Envoyez à stderr ????
+      return NULL; //Envoyez à stderr ????
    }
 
    //Opening the file $words$
@@ -51,7 +100,7 @@ int segment(char *plain_txt, char *words)
    if (!fp)
    {
       printf("Starfoula file\n");
-      return -1; //stderr?
+      return NULL; //stderr?
    }
 
    //Initialisation of a hash table containing the data from $words$
@@ -60,11 +109,11 @@ int segment(char *plain_txt, char *words)
    if (!hashTable)
    {
       printf("Starfoula hastable\n");
-      return -1; //stderr?
+      return NULL; //stderr?
    }
 
    //Completing the hash table with every words
-   size_t nbOccurs, nbOccursTot = 0;
+   size_t nbOccurs = 0;
    char separator[2] = ";";
    char sizeLine[200];
    char *wordName = malloc(sizeof(char) * 100);
@@ -88,7 +137,72 @@ int segment(char *plain_txt, char *words)
 
    fclose(fp);
 
+
+    return hashTable;
 }
+static MaxCell* findSengment(MaxTable* maximums, char* text){
+    if(!text){
+        printf("uninitialized text");
+        return;
+    }
+    for(size_t i = 0; i<maximums->tableSize ; i++){
+        if(strcmp(text, maximums->table[i]->maxStr)==){
+            //segment has been found
+            return maximums->table[i];
+        }
+    }
+    return NULL;
+}
+double maxSegmentation(HashTable* wordsHash, char* text, size_t start, size_t end, MaxTable* recordedMaxes, size_t nbOccursTot){
+    if(!wordsHash || !text || !recordedMaxes){
+        printf("uninit args\n");
+        return -INFINITY;
+    }
+    size_t wordSize = end - start;
+    if(wordSize == 1){
+        //base case
+
+    }
+    //init the word
+    char* word = malloc((1+wordSize)*sizeof(char));
+    if(!tmpText){
+        return;
+    }
+    for(size_t i = start, j = 0; i < end; i++, j++ ){
+        word[j] = text[i];
+    }
+    word[wordSize+1] = '\0';
+    
+    double maxValue = stringValue(wordsHash, word, size_t nbOccursTot);
+
+return maxValue;
+
+}
+
+
+
+
+
+
+
+
+
+
+int segment(char *plain_txt, char *words){
+    if(!plain_txt || !words){
+        printf("ERROR : unintialized arguments\n");
+        return -1;
+    }
+    size_t nbWords = 0;
+    HashTable* wordsHash = initWordHash(words,&nbWords );
+    if(!wordsHash || nbWords == 0){
+        return-1;
+    }
+
+
+
+}
+
 
 int main(void)
 {

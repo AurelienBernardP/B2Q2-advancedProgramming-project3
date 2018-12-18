@@ -264,7 +264,7 @@ static double optimalShiftRec(int* optimalShifts, Bigrams* bigramsHash, Ciphered
     for(int start = 0-maxShifts; start <= maxShifts; start++){
         double currentQuality = alignmentQuality(ciphered, bigramsHash, nbrRows - 1, nbrRows, start, optimalShifts[nbrRows]);
         printf( "current %lf --- max %lf\n",currentQuality, maxQuality );
-        if(currentQuality >= maxQuality){
+        if(currentQuality > maxQuality){
             printf("in\n");
             maxQuality = currentQuality;
             bestShift = start;
