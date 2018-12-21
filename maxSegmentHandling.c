@@ -1,6 +1,6 @@
 #include<stdlib.h>
 #include<stdio.h>
-#include"segment.c"
+#include"maxSegmentHandling.h"
 
 typedef struct{
     size_t start;

@@ -4,7 +4,7 @@
 #include <math.h>
 
 #include "HashTable.h"
-#include "maxSegmentHandling.c"
+#include "maxSegmentHandling.h"
 typedef struct{
     bool isSpliced;
     MaxCell* split1;
