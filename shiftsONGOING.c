@@ -28,17 +28,18 @@ typedef struct{
 *   to each other in a text
 *
 *  INPUT :
-*     - BigamsHssh : a valid pointer to a bigramsHash structure
+*     - BigamsHash : a valid pointer to a bigramsHash structure
 *     - firstLetter: a letter in the language of the bigrams table
 *     - firstLetter: a letter in the language of the bigrams table
 *
 *  OUTPUT :
 *     - the bigram value
 --------------------------------------------------------------------*/
-static double getBigramValue(Bigrams* bigramsHash, char firstLetter, char secondLetter){
+static long double getBigramValue(Bigrams* bigramsHash, char firstLetter, char secondLetter){
     unsigned int valueFirstLetter = firstLetter - 'a';
     unsigned int valueSecondLetter = secondLetter - 'a';
     unsigned int position = valueFirstLetter * bigramsHash->nbLetters + valueSecondLetter;
+    //printf("bigram = %c %c value = %lf\n ",firstLetter,secondLetter,bigramsHash->table[position]);
 
 return bigramsHash->table[position];
 }
@@ -111,7 +112,6 @@ static CipheredText* initText(CipheredText* ciphered ,char* textPath){
         
     }
 
-    
 return ciphered;
 }
 
@@ -157,6 +157,7 @@ static int initBigrams(Bigrams* bigramsHash, char* bigramsFile){
     for(size_t i = 0; i< fileLength; i++){
         
         fscanf(fp, "%3c%lf\n",unusedStr,&bigramsHash->table[i]);
+       // bigramsHash->table[i] *=1000;
 
     }
 
@@ -268,11 +269,12 @@ static void optimalShiftRec( Bigrams* bigramsHash, CipheredText* ciphered, topSh
         printf("error\n");
         return ;
     }
+    if(nbrRows == 0 || nbrRows >= ciphered->nbLines)
+        return;
     printf("working on row %lu\n",nbrRows);
     double localMaxQuality = -INFINITY;
     int previousLineShifts = 0;
-    if(nbrRows == 0 || nbrRows >= ciphered->nbLines)
-        return;
+
     if(nbrRows == 1){
         for (int i = -maxShifts; i <= maxShifts; i++){
 
@@ -280,7 +282,7 @@ static void optimalShiftRec( Bigrams* bigramsHash, CipheredText* ciphered, topSh
             previousLineShifts = 0;
 
             for(int j = -maxShifts; j <= maxShifts; j++){
-                double currentQ = alignmentQuality(ciphered, bigramsHash, nbrRows - 1, nbrRows, j, i);
+                double currentQ = alignmentQuality(ciphered, bigramsHash, nbrRows-1,nbrRows, j, i);
                 
                 if(currentQ > localMaxQuality){
                     localMaxQuality = currentQ;
@@ -309,6 +311,7 @@ static void optimalShiftRec( Bigrams* bigramsHash, CipheredText* ciphered, topSh
         maximums[nbrRows][i+maxShifts].previousShift = previousLineShifts;
         maximums[nbrRows][i+maxShifts].cumulativeQuality = localMaxQuality;
     }
+    printf("row %lu done\n",nbrRows);
         optimalShiftRec( bigramsHash, ciphered, maximums, ++nbrRows, maxShifts);
     return; 
 }
@@ -336,9 +339,9 @@ static double findBestShifts(topShifts** maximums, int* calculatedShifts, Cipher
     }
 
     for(size_t i = 1; i < text->nbLines ;i++){
-        printf("current row = %lu\n",i);
+        printf("************current row = %lu*****************\n",i);
         for(size_t j = 0; j<=2*maxShifts; j++){
-            printf("for shift %d: \n    previous best shift = %d \n    cumsum with that shift = %lf\n ",j-maxShifts, maximums[i][j].previousShift, maximums[i][j].cumulativeQuality );
+            printf("###for shift %d: \n    previous best shift = %d \n    cumsum with that shift = %lf\n",j-maxShifts, maximums[i][j].previousShift, maximums[i][j].cumulativeQuality );
         }
     }
     //find the maximum quality previously calculated

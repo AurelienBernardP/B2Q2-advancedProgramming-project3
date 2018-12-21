@@ -7,9 +7,10 @@
 #include "maxSegmentHandling.c"
 typedef struct{
     bool isSpliced;
-    MaxCell split1;
-    MaxCell split2;
-    char* unsplicedWord;
+    MaxCell* split1;
+    MaxCell* split2;
+    size_t wordStart;
+    size_t wordEnd;
     double value;
 }CurrentMax
 /*-------------------------------------------------------------------
@@ -147,13 +148,13 @@ MaxCell* maxSegmentation(HashTable* wordsHash, char* text, size_t start, size_t 
         printf("uninit args\n");
         return -INFINITY;
     }
-    size_t wordSize = end - start;
-    if(wordSize <= 1){
-        //base case
-        char letter = text[start];
-        return insertNewMaxCell(MaxTable* recordedMaximums,char* text);
-    }
+    //first see if we already have the answer
+    MaxCell* wasCalculated = findSegment(recordedMaximums, start, end);
+    if(wasCalculated != NULL){
+        return wasCalculated;
+    }   
 
+    size_t wordSize = end - start;
     //init the word
     char* word = malloc((1+wordSize)*sizeof(char));
     if(!word){
@@ -164,42 +165,43 @@ MaxCell* maxSegmentation(HashTable* wordsHash, char* text, size_t start, size_t 
     }
     word[wordSize+1] = '\0';
 
-    //end init of word
-    //check if the maximazing segmentation for this word has already been calculated
-    MaxCell* wasCalculated = findSegment(MaxTable* maximums, char* text);
-    if(wasCalculated != NULL){
+    //end init of word    
+    if(wordSize <= 1){
+        //base case
+        MaxCell* newCell = insertNewMaxCell(recordedMaximums,start,end,stringValue(wordsHash, word, nbOccursTot));
         free(word);
-        return wasCalculated;
+        return newCell;
     }
-    //if it hasn't been calculated continue
 
     // init the current Max
     CurrentMax* currentMax = malloc(sizeof(CurrentMax));
     if(!currentMax){
-        free(word);
+
         return NULL;
     }
     currentMax->isSpliced = False;
     currentMax->split1 = CurrentMax->split2 = NULL;
-    currentMax->unsplicedWord = word;
+    currentMax->wordStart = start;
+    currentMax->wordEnd = end;
     currentMax->value = stringValue(wordsHash, word, nbOccursTot);
     // end init current max
-
+    free(word);
     for(size_t i = 1; i < end ; i++){
         MaxCell* cell1 = maxSegmentation(wordsHash, text, start, (end-i), recordedMaximums, nbOccursTot);
         MaxCell* cell2 = maxSegmentation(wordsHash, text, (end-i), end, recordedMaximums, nbOccursTot);
-        if(cell1->value + cell->value > currentMax->value){
+        if(cell1->value + cell2->value > currentMax->value){
             //a new max has been found
             if(currentMax->isSpliced){
                 //replace the other cells
                 currentMax->split1 = cell1;
                 currentMax->split2 = cell2;
+                currentMax->value = cell1->value + cell2->value;
             }else{
                 //set the spliced bool to true, place the cells and free the current word which wont be needed any longer
                 currentMax->isSpliced = True;
                 currentMax->split1 = cell1;
                 currentMax->split2 = cell2;
-                free(currentMax->word);
+                currentMax->value = cell1->value + cell2->value;
             }
         }
     }
@@ -227,9 +229,23 @@ int segment(char *plain_txt, char *words){
     if(!wordsHash || nbWords == 0){
         return-1;
     }
-
-
-
+    size_t textLength = strlen(plain_txt);
+    if(textLength <=1){
+        return-1;
+    }
+    MaxTable* maxTab = initMaxTable(textLength * 4, textLength);
+    if(!maxTab){
+        printf("error at max tab init\n");
+        return -1;
+    }
+    MaxCell* lastCell= maxSegmentation(wordsHash, plain_text, 0, textLength, maxTab, nbWords);
+    if(!lastCell){
+        printf("error at segmentation\n");
+        return -1;
+    }
+    for(size_t i = 0 ;i< textLength ; i++){
+        printf("%d", maxTab->spacesPlacement[i]);
+    }
 }
 
 
