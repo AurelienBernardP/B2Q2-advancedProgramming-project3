@@ -173,6 +173,14 @@ static int initBigrams(Bigrams* bigramsHash, char* bigramsFile){
 return 0;
 }
 
+static size_t MOD(int first, int second){
+    int answer = first % second;
+    if(answer<0){
+        answer+=second;
+    }
+    return (size_t)answer;
+}
+
 static double alignmentQuality(CipheredText* ciphered,Bigrams* bigramsHash, size_t line1, size_t line2, int shiftLine1, int shiftLine2){
     if(!bigramsHash || !ciphered || line1>ciphered->nbLines || line2>ciphered->nbLines){
         printf("uninitialized arguments in alignmentQuality\n");
@@ -181,7 +189,7 @@ static double alignmentQuality(CipheredText* ciphered,Bigrams* bigramsHash, size
 
     double quality = 0.0;
     for(size_t i= 0; i < ciphered->nbColumns ;i++){
-        quality += log(getBigramValue(bigramsHash, ciphered->text[line1][(i-shiftLine1)%ciphered->nbColumns], ciphered->text[line2][(i-shiftLine2)%ciphered->nbColumns]));
+        quality += log(getBigramValue(bigramsHash, ciphered->text[line1][MOD((i-shiftLine1),ciphered->nbColumns)], ciphered->text[line2][MOD(i-shiftLine2,ciphered->nbColumns)]));
     }
     return quality;
 }
@@ -244,7 +252,7 @@ static void shiftText(char** text,int* shifts,  size_t nbColumns, size_t nbLines
             return;
         }
         for(size_t j = 0; j<nbColumns ; j++){
-            tmpString[j] = text[i][(j-shifts[i])%nbColumns];
+            tmpString[j] = text[i][MOD(j-shifts[i],nbColumns)];
 
         }
         free(text[i]);
@@ -402,7 +410,7 @@ int shifts(unsigned int max_shift, char* ciphered_text, char* bigrams){
 
     printText("copyOfTest.txt",textToCrack->text, textToCrack-> nbColumns, textToCrack->nbLines);
     shiftText(textToCrack->text,optimalShifts, textToCrack-> nbColumns, textToCrack->nbLines);
-    printText("testDesciohered.txt",textToCrack->text, textToCrack-> nbColumns, textToCrack->nbLines);
+    printText("testDescifered.txt",textToCrack->text, textToCrack-> nbColumns, textToCrack->nbLines);
     return 0;
 }
 

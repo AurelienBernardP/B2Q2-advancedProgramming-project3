@@ -9,7 +9,7 @@
 
 int main(void){
 
-    shifts(3, "test.txt", "bigrams.csv");
+    shifts(5, "ciphered.txt", "bigrams.csv");
 
     return 0;
 }
