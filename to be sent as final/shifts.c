@@ -514,9 +514,9 @@ int shifts(unsigned int max_shift, char* ciphered_text, char* bigrams){
     }
     //print the array for the best shifts and the best score
     for(size_t i = 0; i<textToCrack->nbLines-1; i++ ){
-        fprintf(stdout,"%d ",optimalShifts[i]);
+        fprintf(stdout,"%d ",-optimalShifts[i]);
     }
-    fprintf(stdout,"%d",optimalShifts[textToCrack->nbLines-1]);
+    fprintf(stdout,"%d",-optimalShifts[textToCrack->nbLines-1]);
     fprintf(stdout,"\n");
     fprintf(stdout,"%lf\n",optimalShiftsScore);
 
